@@ -1,1 +1,5 @@
-# distributed-cloud-service
+### Author: Yusi & Mingyu
+### Time: Oct 27, 2022
+***
+### Discussion Log:
+> Oct 27 -- Created README
