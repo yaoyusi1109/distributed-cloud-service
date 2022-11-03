@@ -107,8 +107,8 @@ def getFileReplicaTuple(filename):
 # Send the dynamically-generated main page to the client.
 def send_main_page(conn, status=None):
     logwarn("Responding with main page")
-    # listing = gather_shared_file_list()
-    content = make_pretty_main_page(my_region, my_name, [], status)
+    listing = gather_shared_file_list()
+    content = make_pretty_main_page(my_region, my_name, listing, status)
     content_len = len(content)
 
     resp = "HTTP/1.1 200 OK\r\n"
