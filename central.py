@@ -132,6 +132,7 @@ def handle_http_connection(conn):
     with stats_updates:
         num_connections_so_far += 1
         num_connections_now += 1
+        log("Current number of connections %s", str(num_connections_now))
         stats_updates.notify_all()
     try:
         conn.keep_alive = True
