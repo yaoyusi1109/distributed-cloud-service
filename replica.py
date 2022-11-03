@@ -176,9 +176,9 @@ def run_replica_server(name, region, frontend_port, backend_port, central_host, 
     log("Central coordinator is on host %s port %s" % (central_host, central_port))
 
     myip = gcp.get_my_external_ip()
-    log("My ip %s" % myip)
+    log("My ip:port %s" % str(myip) + ":" + str(frontend_port))
     url = 'http://' + central_host + ":" + str(central_backend_port) + "/register?" + "ip=" + str(myip) + "&port=" + str(frontend_port)
-    log("Registering...")
+    log("Registering with url...%s" % url)
     r = requests.get(url)
     r.raise_for_status()
     log("Registration at Central Coordinator completed")
