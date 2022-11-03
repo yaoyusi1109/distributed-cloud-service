@@ -56,6 +56,15 @@ def add_file(filename, data):
         status = "Problem storing data in local file named '%s'." % (filename)
     return status
 
+def remove_file(filename):
+    status = ""
+    try:
+        os.remove("./share/" + filename)
+        status = "Success, removed file '%s'." % (filename)
+    except:
+        status = "Problem removing file '%s'." % (filename)
+    return status
+
 def getCentralInfo():
     central_host, central_backend_port = None, None
     with global_condition:
@@ -101,6 +110,29 @@ def handle_http_connection(conn):
 
             elif req.method == "GET" and req.path.startswith("/filenames"):
                 send_filenames_and_sizes(conn)
+
+            # POST /delete (this version expects filename as an html form parameter)
+            elif req.method == "POST" and req.path == "/delete":
+                filename = req.form_content.get("filename", None)
+                if filename is None:
+                    logerr("Missing html form or 'filename' form field?")
+                else:
+                    status = remove_file(filename)
+                redirect_to_other_server(conn, "", central_host, central_backend_port, "/shared-files.html")
+            
+            # POST /delete/whatever.pdf (this version expects filename as part of URL)
+            elif req.method == "POST" and req.path.startswith("/delete/"):
+                filename = req.path[8:]
+                status = remove_file(filename)
+                redirect_to_other_server(conn, "", central_host, central_backend_port, "/shared-files.html")
+            
+            # GET /view/somefile.pdf
+            elif req.method == "GET" and req.path.startswith("/view/"):
+                send_share_file(conn, req.path[6:], False)
+
+            # GET /download/somefile.pdf
+            elif req.method == "GET" and req.path.startswith("/download/"):
+                send_share_file(conn, req.path[10:], True)
                     
     except Exception as err:
         logerr("Front-end connection failed: %s" % (err))

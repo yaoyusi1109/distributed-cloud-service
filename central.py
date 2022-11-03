@@ -45,7 +45,6 @@ num_downloads = 0           # how many downloads of shared files we have handled
 
 # val: replica_ip_port_tuple (ip,port)
 replicaset = set()
-
 # key: filename
 # val: (ip,port)
 locations = defaultdict(tuple)
@@ -94,9 +93,13 @@ def gather_shared_file_list():
         locations = new_locations
         stats_updates.notify_all()
 
-    # merge the two lists into a single combined list of pairs, like
-    #  [ (filename1, size1), (filename2, size2), (filename3, size3) ... ]
-    return list(zip(all_files, all_sizes))
+def getFileReplicaTuple(filename):
+    gather_shared_file_list()
+    replicaTuple = None
+    with stats_updates:
+        replicaTuple = locations[filename]
+        stats_updates.notify_all()
+    return replicaTuple
 
 # Send the dynamically-generated main page to the client.
 def send_main_page(conn, status=None):
@@ -197,6 +200,34 @@ def handle_http_connection(conn):
                     if r.status_code != 200:
                         raise Exception("ping failure during upload !!!!!!")
                     redirect_to_other_server(conn, "", replica_ip, replica_port, "/upload?filelist=" + ','.join(filtered_files))
+
+            # POST /delete (this version expects filename as an html form parameter)
+            elif req.method == "POST" and req.path == "/delete":
+                filename = req.form_content.get("filename", None)
+                if filename is None:
+                    logerr("Missing html form or 'filename' form field?")
+                    send_redirect_to_main_page(conn, "Missing html form or 'filename' form field?")
+                else:
+                    replica_ip, replica_port = getFileReplicaTuple(filename)
+                    redirect_to_other_server(conn, "", replica_ip, replica_port, req.path)
+            
+             # POST /delete/whatever.pdf (this version expects filename as part of URL)
+            elif req.method == "POST" and req.path.startswith("/delete/"):
+                filename = req.path[8:]
+                replica_ip, replica_port = getFileReplicaTuple(filename)
+                redirect_to_other_server(conn, "", replica_ip, replica_port, req.path)
+            
+            # GET /view/somefile.pdf
+            elif req.method == "GET" and req.path.startswith("/view/"):
+                filename = req.path[6:]
+                replica_ip, replica_port = getFileReplicaTuple(filename)
+                redirect_to_other_server(conn, "", replica_ip, replica_port, req.path)
+
+            # GET /download/somefile.pdf
+            elif req.method == "GET" and req.path.startswith("/download/"):
+                filename = req.path[10:]
+                replica_ip, replica_port = getFileReplicaTuple(filename)
+                redirect_to_other_server(conn, "", replica_ip, replica_port, req.path)
 
     except Exception as err:
         logerr("Front-end connection failed: %s" % (err))

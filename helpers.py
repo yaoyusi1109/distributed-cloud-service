@@ -105,4 +105,68 @@ def send_filenames_and_sizes(conn):
     resp += "Content-Length: %d\r\n" % (len(content))
     resp += "Content-Type: text/plain\r\n"
     conn.sock.sendall(resp.encode() + b"\r\n" + content.encode())
+
+# Given a filename of a shared file that is stored locally, get the data from
+# the file.
+def get_share_file_locally(filename):
+    try:
+        log("Opening locally-stored shared file '%s'..." % (filename))
+        with open("./share/" + filename, "rb") as f:
+            data = f.read()
+            return data
+    except OSError as err:
+        logerr("problem opening shared file '%s' locally: %s" % (filename, err))
+        return None
+
+# Send a generic HTTP 404 NOT FOUND response to the client.
+def send_404_not_found(conn):
+    logwarn("Responding with 404 not found")
+    content = "Sorry, the page you requested could not be found :)"
+    content_len = len(content)
+
+    resp = "HTTP/1.1 404 NOT FOUND\r\n"
+    resp += "Date: %s\r\n" % (http.http_date_now())
+    if conn.keep_alive:
+        resp += "Connection: keep-alive\r\n"
+    else:
+        resp += "Connection: close\r\n"
+    resp += "Content-Length: %d\r\n" % (content_len)
+    resp += "Content-Type: text/plain\r\n"
+    log(resp)
+    conn.sock.sendall(resp.encode() + b"\r\n" + content.encode())
     
+# Send a shared file to the browser. This will first locate the file by checking
+# if it is stored locally. If not found, we send a 404 NOT FOUND response. If
+# the file is found, we send it back to the client. When the as_attachment
+# parameter is True, then we include in the HTTP response a
+# "Content-Disposition: attachment" header, which causes most browsers to bring
+# up a "Save-As" popup, rather than displaying the file.
+def send_share_file(conn, filename, as_attachment):
+    # first, see if we can find the file on this local server
+    filedata = get_share_file_locally(filename)
+
+    # if not found, give up
+    if filedata is None:
+        send_404_not_found(conn)
+        return
+
+    # file was found, send it to browser
+    mime_type = mimetypes.guess_type(filename)[0]
+    if mime_type is None:
+        mime_type = "application/octet-stream"
+
+    content = filedata
+    content_len = len(content)
+
+    resp = "HTTP/1.1 200 OK\r\n"
+    resp += "Date: %s\r\n" % (http.http_date_now())
+    if conn.keep_alive:
+        resp += "Connection: keep-alive\r\n"
+    else:
+        resp += "Connection: close\r\n"
+    if as_attachment:
+        resp += 'Content-Disposition: attachment; filename="%s"\r\n' % (filename)
+    resp += "Content-Length: %d\r\n" % (content_len)
+    resp += "Content-Type: %s\r\n" % (mime_type)
+    log(resp)
+    conn.sock.sendall(resp.encode() + b"\r\n" + content)
