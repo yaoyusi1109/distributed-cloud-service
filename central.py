@@ -241,6 +241,9 @@ def handle_http_connection(conn):
                 filename = req.path[10:]
                 replica_ip, replica_port = getFileReplicaTuple(filename)
                 redirect_to_other_server(conn, "", replica_ip, replica_port, req.path)
+            
+            else:
+                send_404_not_found(conn)
 
     except Exception as err:
         logerr("Front-end connection failed: %s" % (err))
