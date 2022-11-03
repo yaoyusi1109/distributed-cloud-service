@@ -177,7 +177,7 @@ def run_replica_server(name, region, frontend_port, backend_port, central_host, 
 
     myip = gcp.get_my_external_ip()
     log("My ip %s" % myip)
-    url = 'http://' + central_host + ":" + central_backend_port + "/register?" + "ip=" + str(myip) + "&port=" + str(frontend_port)
+    url = 'http://' + central_host + ":" + str(central_backend_port) + "/register?" + "ip=" + str(myip) + "&port=" + str(frontend_port)
     log("Registering...")
     r = requests.get(url)
     r.raise_for_status()

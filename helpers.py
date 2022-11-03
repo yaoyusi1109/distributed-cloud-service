@@ -67,6 +67,7 @@ def send_redirect_to_main_page(conn, status):
 # with a status message embedded into the url (so the status message will
 # display on the page).
 def redirect_to_other_server(conn, content, ip, port, req_path):
+    port = str(port)
     logwarn("Responding with redirect to main page")
     url = 'http://' + ip + ":" + port + req_path
     content_len = len(content)
