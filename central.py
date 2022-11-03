@@ -128,6 +128,8 @@ def send_main_page(conn, status=None):
 def handle_http_connection(conn):
     global replicaset, locations, num_connections_so_far, num_connections_now
 
+    static_file_names = os.listdir("./static/")  # list of static files we can serve
+
     log("New browser connection from %s:%d" % (conn.client_addr))
     with stats_updates:
         num_connections_so_far += 1
