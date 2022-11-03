@@ -93,6 +93,8 @@ def gather_shared_file_list():
         replicaset = new_replicas
         locations = new_locations
         stats_updates.notify_all()
+    
+    return list(zip(all_files, all_sizes))
 
 def getFileReplicaTuple(filename):
     gather_shared_file_list()
