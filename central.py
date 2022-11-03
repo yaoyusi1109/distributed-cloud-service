@@ -73,11 +73,13 @@ def gather_shared_file_list():
         replica_port = replica_ip_port_tuple[1]
         url = 'http://' + replica_ip + ":" + replica_port + "/filenames"
         r = requests.get(url)
+        log("GATHERING FILE LIST from %s:" % url)
         if r.status_code == 200:
             new_replicas.add(replica_ip_port_tuple)
             allfiles_string = r.content
-            log("GATHERING FILE LIST:")
-            log(r.content)
+            if allfiles_string == "":
+                continue
+            log("response string:", % r.content)
             parsed_files = allfiles_string.split('&')
             for file_string in parsed_files:
                 if file_string in new_locations:
