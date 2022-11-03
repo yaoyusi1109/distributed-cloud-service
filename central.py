@@ -169,6 +169,7 @@ def handle_http_connection(conn):
             
             # GET FROM REPLICA /register
             elif req.method == "GET" and req.path.startswith("/register"):
+                log("Getting request path %s" % req.path)
                 params = extractPathParams(req.path, "register")
                 ip = params["ip"]
                 port = params["port"]
