@@ -36,15 +36,19 @@ my_frontend_port = None   # port number for the browser-facing listening socket
 my_backend_port = None    # port number for peer-facing listening socket
 my_region = None          # geographic region where this server is located
 
-# val: replica_ip_port_tuple (ip,port)
-replicaset = set()
-
 stats_updates = threading.Condition() # used to synchronize access to statistics variables
 num_connections_so_far = 0  # how many browser connections we have handled so far
 num_connections_now = 0     # how many browser connections we are handling right now
 num_local_files = 0         # number of shared files stored locally on this server
 num_uploads = 0             # how many uploads of shared files we have handled so far
 num_downloads = 0           # how many downloads of shared files we have handled so far
+
+# val: replica_ip_port_tuple (ip,port)
+replicaset = set()
+
+# key: filename
+# val: (ip,port)
+locations = defaultdict(tuple)
 
 # This condition variable is used to signal that some thread
 # crashed, in which case it is time to cleanup and exit the program.
@@ -65,9 +69,12 @@ def extractGetParams(req_path, route_prefix):
 # Create a list of all known shared files, along with their sizes.
 # This returns a list of (filename, size) pairs.
 def gather_shared_file_list():
+    global replicaset, locations
+
     all_files, all_sizes = [], []
     old_replicas_list = []
     new_replicas = set()
+    new_locations = defaultdict(tuple)
 
     with stats_updates:
         old_replicas_list = list(replicaset)
@@ -85,12 +92,18 @@ def gather_shared_file_list():
             log(r.content)
             parsed_files = allfiles_string.split('&')
             for file_string in parsed_files:
+                if file_string in new_locations:
+                    continue
                 parsed_f = file_string.split(',')
                 all_files.append(parsed_f[0])
                 all_sizes.append(parsed_f[1])
+                new_locations[file_string] = replica_ip_port_tuple
+        else:
+            logwarn("cannot connect to replica ip: %s", replica_ip)
     
     with stats_updates:
         replicaset = new_replicas
+        locations = new_locations
         stats_updates.notify_all()
 
     # merge the two lists into a single combined list of pairs, like
