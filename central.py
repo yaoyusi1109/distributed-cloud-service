@@ -8,6 +8,7 @@
 
 from helpers import *
 import random
+import requests
 
 from dataclasses import dataclass # use python3's dataclass feature
 import threading                  # for threading.Thread()
