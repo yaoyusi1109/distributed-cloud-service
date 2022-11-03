@@ -207,7 +207,7 @@ def handle_http_connection(conn):
                     for upload in uploaded_files[:]:
                         filename = upload.filename
                         if not filename in fileset:
-                            filtered_files.append(upload)
+                            filtered_files.append(filename)
 
                     replica_ip_port_tuple = random.choice(replicas_list)
                     replica_ip = replica_ip_port_tuple[0]
