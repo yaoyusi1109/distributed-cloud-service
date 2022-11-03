@@ -51,16 +51,14 @@ def send_redirect_to_main_page(conn, status):
     log(resp)
     conn.sock.sendall(resp.encode() + b"\r\n" + content.encode())
 
-# Send an HTTP 302 TEMPORARY REDIRECT to bounce client towards the main page,
-# with a status message embedded into the url (so the status message will
-# display on the page).
+# Send an HTTP 307 TEMPORARY REDIRECT to bounce client towards replica
 def redirect_to_other_server(conn, content, ip, port, req_path):
     port = str(port)
     logwarn("Responding with redirect to main page")
     url = 'http://' + ip + ":" + port + req_path
     content_len = len(content)
 
-    resp = "HTTP/1.1 302 TEMPORARY REDIRECT\r\n"
+    resp = "HTTP/1.1 307 Temporary Redirect\r\n"
     resp += "Date: %s\r\n" % (http.http_date_now())
     if conn.keep_alive:
         resp += "Connection: keep-alive\r\n"
