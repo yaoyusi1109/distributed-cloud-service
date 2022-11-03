@@ -147,15 +147,19 @@ def handle_http_connection(conn):
         
             # GET /index.html
             if req.method == "GET" and req.path in ["/index.html", "/"]:
+                log("Handler: GET /index.html")
                 send_redirect_to_main_page(conn, None)
 
             # GET /shared-files.html
             # GET /shared-files.html?status=Some+message+to+be+displayed+on_page
             elif req.method == "GET" and req.path == "/shared-files.html":
+                log("Handler: GET /shared-files.html")
                 status = None
                 if "status" in req.params:
                     status = req.params["status"]
+                log("Begin trasmitting main page")
                 send_main_page(conn, status)
+                log("Main page send completed!!!")
             
             # GET FROM REPLICA /register
             elif req.method == "GET" and req.path.startswith("/register"):
