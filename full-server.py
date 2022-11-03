@@ -448,6 +448,7 @@ def handle_http_connection(conn):
     try:
         conn.keep_alive = True
         while conn.keep_alive:
+            log("Waiting for next request!!!")
             # handle one HTTP request from browser
             req = http.recv_one_request_from_client(conn.sock)
             if req is None:
