@@ -54,18 +54,6 @@ locations = defaultdict(tuple)
 # crashed, in which case it is time to cleanup and exit the program.
 crash_updates = threading.Condition()
 
-def extractGetParams(req_path, route_prefix):
-    # return_param: dict: key string -> val string
-    # example route_prefix: "register", "file" etc.
-    full_prefix_len = len(route_prefix) + 2
-    retval = {}
-    param_string = req_path[full_prefix_len:]
-    parsed = param_string.split("&")
-    for x in parsed:
-        key, val = x.split("=")
-        retval[key] = val
-    return retval
-
 # Create a list of all known shared files, along with their sizes.
 # This returns a list of (filename, size) pairs.
 def gather_shared_file_list():
@@ -165,7 +153,7 @@ def handle_http_connection(conn):
             
             # GET FROM REPLICA /register
             elif req.method == "GET" and req.path.startswith("/register"):
-                params = extractGetParams(req.path, "register")
+                params = extractPathParams(req.path, "register")
                 ip = params["ip"]
                 port = params["port"]
                 with stats_updates:
@@ -200,14 +188,13 @@ def handle_http_connection(conn):
                         filename = upload.filename
                         if not filename in fileset:
                             filtered_files.append(upload)
-                    req.form_content["files"] = filtered_files
 
                     replica_ip_port_tuple = random.choice(replicas_list)
                     replica_ip = replica_ip_port_tuple[0]
                     replica_port = replica_ip_port_tuple[1]
                     url = 'http://' + replica_ip + ":" + replica_port + "/ping"
                     r = requests.get(url)
-                    redirect_to_other_server(conn, "", replica_ip, replica_port, "/upload")
+                    redirect_to_other_server(conn, "", replica_ip, replica_port, "/upload?filelist=" + ','.join(filtered_files))
 
     except Exception as err:
         logerr("Front-end connection failed: %s" % (err))

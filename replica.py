@@ -89,10 +89,13 @@ def handle_http_connection(conn):
             
             # POST /upload (expects filename(s) and file(s) as html multipart-encoded form parameters)
             elif req.method == "POST" and req.path.startswith("/upload"):
+                params = extractPathParams(req.path, "upload")
+                filtered_files = params["filelist"].split(",")
                 for upload in uploaded_files:
-                    filename = upload.filename
-                    contents = upload.data
-                    add_file(filename, contents)
+                    if upload in filtered_files:
+                        filename = upload.filename
+                        contents = upload.data
+                        add_file(filename, contents)
                 central_host, central_backend_port = getCentralInfo()
                 redirect_to_other_server(conn, "", central_host, central_backend_port, "/shared-files.html")
 

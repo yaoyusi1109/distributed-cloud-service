@@ -13,6 +13,18 @@ import threading                    # for threading.Thread()
 import time                         # for time.time()
 import urllib.parse                 # for quoting and unquoting url paths
 
+def extractPathParams(req_path, route_prefix):
+    # return_param: dict: key string -> val string
+    # example route_prefix: "register", "file" etc.
+    full_prefix_len = len(route_prefix) + 2
+    retval = {}
+    param_string = req_path[full_prefix_len:]
+    parsed = param_string.split("&")
+    for x in parsed:
+        key, val = x.split("=")
+        retval[key] = val
+    return retval
+
 def send_ok(conn, content):
     logwarn("Responding with content")
     content_len = len(content)
