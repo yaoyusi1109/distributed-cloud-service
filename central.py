@@ -132,7 +132,7 @@ def send_main_page(conn, status=None):
 # and repeat this as long as the browser says to keep-alive. If there are any
 # errors, or if the browser says to close, the connection is closed.
 def handle_http_connection(conn):
-    global replicaset, num_connections_so_far, num_connections_now
+    global replicaset, locations, num_connections_so_far, num_connections_now
 
     log("New browser connection from %s:%d" % (conn.client_addr))
     with stats_updates:
@@ -180,30 +180,33 @@ def handle_http_connection(conn):
                     logerr("Missing html form or 'file' form field?")
                     send_redirect_to_main_page(conn, "Sorry, form with file wasn't submitted.")
                 else:
-                    replica_ip, replica_port = None, None
+                    # find a working replica
+                    # refresh replicaset
+                    gather_shared_file_list()
                     replicas_list = []
+                    fileset = set()
+                    with stats_updates:
+                        fileset = set(locations.keys())
+                        replicas_list = list(replicaset)
+                        stats_updates.notify_all()
 
-                    while True:
-                        # find a working replica
-                        with stats_updates:
-                            replicas_list = list(replicaset)
-                            stats_updates.notify_all()
-                        if len(replicas_list) == 0:
-                            logerr("ERR!!!!!! All the replicas are dead!!!!!!!!!")
-                            send_redirect_to_main_page(conn, "Sorry, all the replicas are dead.")
-                            raise Exception("all replicas are dead!")
-                        replica_ip_port_tuple = random.choice(replicas_list)
-                        replica_ip = replica_ip_port_tuple[0]
-                        replica_port = replica_ip_port_tuple[1]
-                        url = 'http://' + replica_ip + ":" + replica_port + "/ping"
-                        r = requests.get(url)
-                        if r.status_code == 200:
-                            break
-                        # else ping error, replica is dead, erase it
-                        with stats_updates:
-                            replicaset.discard(replica_ip_port_tuple)
-                    log("redirecting to replica for upload...")
+                    if len(replicas_list) == 0:
+                        logerr("ERR!!!!!! All the replicas are dead!!!!!!!!!")
+                        send_redirect_to_main_page(conn, "Sorry, all the replicas are dead.")
+                        raise Exception("all replicas are dead!")
                     
+                    filtered_files = []
+                    for upload in uploaded_files[:]:
+                        filename = upload.filename
+                        if not filename in fileset:
+                            filtered_files.append(upload)
+                    req.form_content["files"] = filtered_files
+
+                    replica_ip_port_tuple = random.choice(replicas_list)
+                    replica_ip = replica_ip_port_tuple[0]
+                    replica_port = replica_ip_port_tuple[1]
+                    url = 'http://' + replica_ip + ":" + replica_port + "/ping"
+                    r = requests.get(url)
                     redirect_to_other_server(conn, "", replica_ip, replica_port, "/upload")
 
     except Exception as err:
