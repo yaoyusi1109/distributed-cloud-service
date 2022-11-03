@@ -203,11 +203,11 @@ def handle_http_connection(conn):
                         send_redirect_to_main_page(conn, "Sorry, all the replicas are dead.")
                         raise Exception("all replicas are dead!")
                     
-                    filtered_files = []
+                    filtered_file_names = []
                     for upload in uploaded_files[:]:
                         filename = upload.filename
                         if not filename in fileset:
-                            filtered_files.append(filename)
+                            filtered_file_names.append(filename)
 
                     replica_ip_port_tuple = random.choice(replicas_list)
                     replica_ip = replica_ip_port_tuple[0]
@@ -216,7 +216,7 @@ def handle_http_connection(conn):
                     r = requests.get(url)
                     if r.status_code != 200:
                         raise Exception("ping failure during upload !!!!!!")
-                    redirect_to_other_server(conn, "", replica_ip, replica_port, "/upload?filelist=" + ','.join(filtered_files))
+                    redirect_to_other_server(conn, "", replica_ip, replica_port, "/upload?filelist=" + ','.join(filtered_file_names))
 
             # POST /delete (this version expects filename as an html form parameter)
             elif req.method == "POST" and req.path == "/delete":
