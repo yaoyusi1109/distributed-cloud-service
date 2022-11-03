@@ -1,17 +1,20 @@
 #!/usr/bin/python3
-import socket
-# Author: Yusi Yao, Mingyu Liu
+
+# Author: K. Walsh <kwalsh@holycross.edu>
 # Date: 15 October 2022
 #
 # Code for a cloud file storage central coordinator. This talks to several
-# replicas and sometimes also talks to HTTP clients (browsers).d
+# replicas and sometimes also talks to HTTP clients (browsers).
+
+from helpers import *
+import random
 
 from dataclasses import dataclass # use python3's dataclass feature
 import threading                  # for threading.Thread()
 import sys                        # for exiting and command-line args
 from fileshare_helpers import *   # for csci356 filesharing helper code
 from multithread_logging import * # for csci356 logging helper code
-
+from collections import defaultdict
 
 # This data type represents a collection of information about some other
 # replica. You can add or remove variables as you see fit. Use it like this:
@@ -26,17 +29,180 @@ class Replica:
     region: str    # geographic region where that replica is located
     backend_portnum: int   # back-end port number which that replica is listening on
 
-
 ####  Global Variables ####
 
 my_name = None            # dns name of this server
-my_frontend_port = "80"   # port number for the browser-facing listening socket
-my_backend_port = "80"   # port number for peer-facing listening socket
-my_region = "us-central1-a"          # geographic region where this server is located
+my_frontend_port = None   # port number for the browser-facing listening socket
+my_backend_port = None    # port number for peer-facing listening socket
+my_region = None          # geographic region where this server is located
+
+# val: replica_ip_port_tuple (ip,port)
+replicaset = set()
+
+stats_updates = threading.Condition() # used to synchronize access to statistics variables
+num_connections_so_far = 0  # how many browser connections we have handled so far
+num_connections_now = 0     # how many browser connections we are handling right now
+num_local_files = 0         # number of shared files stored locally on this server
+num_uploads = 0             # how many uploads of shared files we have handled so far
+num_downloads = 0           # how many downloads of shared files we have handled so far
 
 # This condition variable is used to signal that some thread
 # crashed, in which case it is time to cleanup and exit the program.
 crash_updates = threading.Condition()
+
+def extractGetParams(req_path, route_prefix):
+    # return_param: dict: key string -> val string
+    # example route_prefix: "register", "file" etc.
+    full_prefix_len = len(route_prefix) + 2
+    retval = {}
+    param_string = req_path[full_prefix_len:]
+    parsed = param_string.split("&")
+    for x in parsed:
+        key, val = x.split("=")
+        retval[key] = val
+    return retval
+
+# Create a list of all known shared files, along with their sizes.
+# This returns a list of (filename, size) pairs.
+def gather_shared_file_list():
+    all_files, all_sizes = [], []
+    old_replicas_list = []
+    new_replicas = set()
+
+    with stats_updates:
+        old_replicas_list = list(replicaset)
+        stats_updates.notify_all()
+
+    for replica_ip_port_tuple in old_replicas_list:
+        replica_ip = replica_ip_port_tuple[0]
+        replica_port = replica_ip_port_tuple[1]
+        url = 'http://' + replica_ip + ":" + replica_port + "/filenames"
+        r = requests.get(url)
+        if r.status_code == 200:
+            new_replicas.add(replica_ip_port_tuple)
+            allfiles_string = r.content
+            log("GATHERING FILE LIST:")
+            log(r.content)
+            parsed_files = allfiles_string.split('&')
+            for file_string in parsed_files:
+                parsed_f = file_string.split(',')
+                all_files.append(parsed_f[0])
+                all_sizes.append(parsed_f[1])
+    
+    with stats_updates:
+        replicaset = new_replicas
+        stats_updates.notify_all()
+
+    # merge the two lists into a single combined list of pairs, like
+    #  [ (filename1, size1), (filename2, size2), (filename3, size3) ... ]
+    return list(zip(all_files, all_sizes))
+
+# Send the dynamically-generated main page to the client.
+def send_main_page(conn, status=None):
+    logwarn("Responding with main page")
+    listing = gather_shared_file_list()
+    content = make_pretty_main_page(my_region, my_name, listing, status)
+    content_len = len(content)
+
+    resp = "HTTP/1.1 200 OK\r\n"
+    resp += "Date: %s\r\n" % (http.http_date_now())
+    if conn.keep_alive:
+        resp += "Connection: keep-alive\r\n"
+    else:
+        resp += "Connection: close\r\n"
+    resp += "Content-Length: %d\r\n" % (content_len)
+    resp += "Content-Type: text/html\r\n"
+    log(resp)
+    conn.sock.sendall(resp.encode() + b"\r\n" + content.encode())
+
+# Handle one browser connection. This will receive an HTTP request, handle it,
+# and repeat this as long as the browser says to keep-alive. If there are any
+# errors, or if the browser says to close, the connection is closed.
+def handle_http_connection(conn):
+    global replicaset, num_connections_so_far, num_connections_now
+
+    log("New browser connection from %s:%d" % (conn.client_addr))
+    with stats_updates:
+        num_connections_so_far += 1
+        num_connections_now += 1
+        stats_updates.notify_all()
+    try:
+        conn.keep_alive = True
+        while conn.keep_alive:
+            # handle one HTTP request from browser
+            req = http.recv_one_request_from_client(conn.sock)
+            if req is None:
+                logerr("No request?! Something went terribly wrong, dropping connection.")
+                break
+            log(req)
+            conn.num_requests += 1
+            conn.keep_alive = req.keep_alive
+        
+            # GET /index.html
+            if req.method == "GET" and req.path in ["/index.html", "/"]:
+                send_redirect_to_main_page(conn, None)
+
+            # GET /shared-files.html
+            # GET /shared-files.html?status=Some+message+to+be+displayed+on_page
+            elif req.method == "GET" and req.path == "/shared-files.html":
+                status = None
+                if "status" in req.params:
+                    status = req.params["status"]
+                send_main_page(conn, status, all_files, all_sizes)
+            
+            # GET FROM REPLICA /register
+            elif req.method == "GET" and req.path.startswith("/register"):
+                params = extractGetParams(req.path, "register")
+                ip = params["ip"]
+                port = params["port"]
+                with stats_updates:
+                    replicaset.add((ip, port))
+                    stats_updates.notify_all()
+                send_ok(conn)
+            
+            # POST FROM CLIENT /upload
+            elif req.method == "POST" and req.path == "/upload":
+                uploaded_files = req.form_content.get("files", None)
+                if uploaded_files is None or len(uploaded_files) == 0:
+                    logerr("Missing html form or 'file' form field?")
+                    send_redirect_to_main_page(conn, "Sorry, form with file wasn't submitted.")
+                else:
+                    replica_ip, replica_port = None, None
+                    replicas_list = []
+
+                    while True:
+                        # find a working replica
+                        with stats_updates:
+                            replicas_list = list(replicaset)
+                            stats_updates.notify_all()
+                        if len(replicas_list) == 0:
+                            logerr("ERR!!!!!! All the replicas are dead!!!!!!!!!")
+                            send_redirect_to_main_page(conn, "Sorry, all the replicas are dead.")
+                            raise Exception("all replicas are dead!")
+                        replica_ip_port_tuple = random.choice(replicas_list)
+                        replica_ip = replica_ip_port_tuple[0]
+                        replica_port = replica_ip_port_tuple[1]
+                        url = 'http://' + replica_ip + ":" + replica_port + "/ping"
+                        r = requests.get(url)
+                        if r.status_code == 200:
+                            break
+                        # else ping error, replica is dead, erase it
+                        with stats_updates:
+                            replicaset.discard(replica_ip_port_tuple)
+                    log("redirecting to replica for upload...")
+                    
+                    redirect_to_other_server(conn, "", replica_ip, replica_port, "/upload")
+
+    except Exception as err:
+        logerr("Front-end connection failed: %s" % (err))
+        raise err
+
+    finally:
+        log("Closing socket connection with %s:%d" % (conn.client_addr))
+        with stats_updates:
+            num_connections_now -= 1
+            stats_updates.notify_all()
+        conn.sock.close()
 
 # Given a socket listening on the browser-facing front-end port, wait for and
 # accept connections from browsers and spawn a thread to handle each connection.
@@ -58,60 +224,6 @@ def accept_http_connections(listening_sock):
         with crash_updates:
             crash_updates.notify_all()
 
-# Handle one browser connection. This will receive an HTTP request, handle it,
-# and repeat this as long as the browser says to keep-alive. If there are any
-# errors, or if the browser says to close, the connection is closed.
-def handle_http_connection(conn):
-    log("New browser connection from %s:%d" % (conn.client_addr))
-    global num_connections_so_far, num_connections_now
-    with stats_updates:
-        num_connections_so_far += 1
-        num_connections_now += 1
-        stats_updates.notify_all()
-    try:
-        conn.keep_alive = True
-        while conn.keep_alive:
-            # handle one HTTP request from browser
-            req = http.recv_one_request_from_client(conn.sock)
-            if req is None:
-                logerr("No request?! Something went terribly wrong, dropping connection.")
-                break
-            log(req)
-            conn.num_requests += 1
-            conn.keep_alive = req.keep_alive
-
-            # send the client to replica no matter the request
-            send_redirect_to_replica(conn, None)
-
-            log("Done processing request, connection keep_alive is %s" % (conn.keep_alive))
-        except Exception as err:
-            logerr("Front-end connection failed: %s" % (err))
-            raise err
-        finally:
-            log("Closing socket connection with %s:%d" % (conn.client_addr))
-            with stats_updates:
-                num_connections_now -= 1
-                stats_updates.notify_all()
-            conn.sock.close()
-
-# send an HTTP 302 TEMPORARY REDIRECT to bounce client towards replica
-def send_redirect_to_replica(conn, status):
-    content = "sending to replica"
-    content_len = len(content)
-    # HARD CODE ID ADDRESS TO REPLICA MACHINE
-    ip_ad = "34.67.225.32"
-    resp = "HTTP/1.1 302 TEMPORARY REDIRECT\r\n"
-    resp += "Date: %s\r\n" % (http.http_date_now())
-    if conn.keep_alive:
-        resp += "Connection: keep-alive\r\n"
-    else:
-        resp += "Connection: close\r\n"
-        resp += "Content-Length: %d\r\n" % (content_len)
-        resp += "Content-Type: text/plain\r\n"
-        resp += "Location: %s\r\n" % (url)
-        log(resp)
-        conn.sock.sendall(resp.encode() + b"\r\n" + content.encode())
-
 #### Top level code to start this central coordinator server  ####
 
 # Given some configuration parameters, this function:
@@ -130,20 +242,12 @@ def run_central_server(name, region, frontend_port, backend_port):
     my_region = region
     my_frontend_port = frontend_port
     my_backend_port = backend_port
+    listening_addr = my_name
+    if listening_addr == "localhost":
+        listening_addr = "" # when IP isn't known, blank is better than "localhost"
 
-    try:# TOOD: something useful.
-        # First socket is our backend socket listening for backend connections
-        s1 = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        s1.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        addr1 = (listening_addr, backend_port)
-        s1.bind(addr1)
-        s1.listen(5)
-        # Spawn thread to wait for and accept connections from hackers or whatever
-        t1 = threading.Thread(target=accept_backend_connections, args=(s1,))
-        t1.daemon = True
-        t1.start()
-
-        #Accept http connection
+    s2 = None
+    try:
         # Second socket is our frontend socket listening for browser connections
         s2 = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         s2.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -154,22 +258,15 @@ def run_central_server(name, region, frontend_port, backend_port):
         t2 = threading.Thread(target=accept_http_connections, args=(s2,))
         t2.daemon = True
         t2.start()
-
-        logwarn("Waiting for one of our main threads or sockets to crash...")
-        with crash_updates:
-            crash_updates.wait()
+        
         log("Waiting for something to crash...")
         with crash_updates:
             crash_updates.wait()
-
-    except Expection as err:
+    except Exception as err:
         logerr("Main initialization failed: %s" % (err))
         raise err
-
     finally:
         log("Some thread crashed, cleaning up...")
-        if s1 is not None:
-            s1.close()
         if s2 is not None:
             s2.close()
         log("Finished!")
