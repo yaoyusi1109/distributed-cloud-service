@@ -173,6 +173,9 @@ def handle_http_connection(conn):
                     log("adding replica ip %s", ip)
                     stats_updates.notify_all()
                 send_ok(conn)
+
+            elif req.method == "GET" and req.path.startswith("/") and req.path[1:] in static_file_names:
+                send_static_local_file(conn, req.path[1:])
             
             # POST FROM CLIENT /upload
             elif req.method == "POST" and req.path == "/upload":

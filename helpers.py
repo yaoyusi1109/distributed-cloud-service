@@ -134,7 +134,7 @@ def send_404_not_found(conn):
     resp += "Content-Type: text/plain\r\n"
     log(resp)
     conn.sock.sendall(resp.encode() + b"\r\n" + content.encode())
-    
+
 # Send a shared file to the browser. This will first locate the file by checking
 # if it is stored locally. If not found, we send a 404 NOT FOUND response. If
 # the file is found, we send it back to the client. When the as_attachment
@@ -166,6 +166,34 @@ def send_share_file(conn, filename, as_attachment):
         resp += "Connection: close\r\n"
     if as_attachment:
         resp += 'Content-Disposition: attachment; filename="%s"\r\n' % (filename)
+    resp += "Content-Length: %d\r\n" % (content_len)
+    resp += "Content-Type: %s\r\n" % (mime_type)
+    log(resp)
+    conn.sock.sendall(resp.encode() + b"\r\n" + content)
+
+def send_static_local_file(conn, filename):
+    log("Browser asked for a local, static file")
+    try:
+        with open("./static/" + filename, "rb") as f:
+            filedata = f.read()
+    except OSError as err:
+        logerr("problem opening local file '%s': %s" % (filename, err))
+        send_404_not_found(conn)
+        return
+
+    mime_type = mimetypes.guess_type(filename)[0]
+    if mime_type is None:
+        mime_type = "application/octet-stream"
+
+    content = filedata
+    content_len = len(content)
+
+    resp = "HTTP/1.1 200 OK\r\n"
+    resp += "Date: %s\r\n" % (http.http_date_now())
+    if conn.keep_alive:
+        resp += "Connection: keep-alive\r\n"
+    else:
+        resp += "Connection: close\r\n"
     resp += "Content-Length: %d\r\n" % (content_len)
     resp += "Content-Type: %s\r\n" % (mime_type)
     log(resp)
