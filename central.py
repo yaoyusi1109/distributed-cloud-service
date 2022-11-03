@@ -79,7 +79,7 @@ def gather_shared_file_list():
             allfiles_string = r.content
             if allfiles_string == "":
                 continue
-            log("response string:", % r.content)
+            log("response string:%s" % r.content)
             parsed_files = allfiles_string.split('&')
             for file_string in parsed_files:
                 if file_string in new_locations:
