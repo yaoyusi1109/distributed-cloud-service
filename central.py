@@ -176,7 +176,7 @@ def handle_http_connection(conn):
                     replicaset.add((ip, port))
                     log("Registering replica ip:port %s" % (str(ip) + ":" + str(port)))
                     stats_updates.notify_all()
-                send_ok(conn)
+                send_ok(conn, "cool")
 
             elif req.method == "GET" and req.path.startswith("/") and req.path[1:] in static_file_names:
                 send_static_local_file(conn, req.path[1:])
