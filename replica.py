@@ -98,7 +98,8 @@ def handle_http_connection(conn):
             
             # POST /upload (expects filename(s) and file(s) as html multipart-encoded form parameters)
             elif req.method == "POST" and req.path.startswith("/upload"):
-                params = extractPathParams(req.path, "upload")
+                params = req.params
+                log("Got filtered file list from central %s" % params["filelist"])
                 filtered_files = params["filelist"].split(",")
                 for upload in uploaded_files:
                     if upload in filtered_files:
