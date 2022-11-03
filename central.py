@@ -194,6 +194,8 @@ def handle_http_connection(conn):
                     replica_port = replica_ip_port_tuple[1]
                     url = 'http://' + replica_ip + ":" + replica_port + "/ping"
                     r = requests.get(url)
+                    if r.status_code != 200:
+                        raise Exception("ping failure during upload !!!!!!")
                     redirect_to_other_server(conn, "", replica_ip, replica_port, "/upload?filelist=" + ','.join(filtered_files))
 
     except Exception as err:
