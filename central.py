@@ -149,7 +149,7 @@ def handle_http_connection(conn):
                 status = None
                 if "status" in req.params:
                     status = req.params["status"]
-                send_main_page(conn, status, all_files, all_sizes)
+                send_main_page(conn, status)
             
             # GET FROM REPLICA /register
             elif req.method == "GET" and req.path.startswith("/register"):
