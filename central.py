@@ -174,7 +174,7 @@ def handle_http_connection(conn):
                 port = params["port"]
                 with stats_updates:
                     replicaset.add((ip, port))
-                    log("Registering replica ip %s", ip)
+                    log("Registering replica ip:port %s" % (str(ip) + ":" + str(port)))
                     stats_updates.notify_all()
                 send_ok(conn)
 
