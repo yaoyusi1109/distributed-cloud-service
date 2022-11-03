@@ -1,4 +1,4 @@
-### Author: Yusi & Mingyu
+### Author: Yusi
 ### Time: Oct 27, 2022
 ***
 ### Discussion Log:
