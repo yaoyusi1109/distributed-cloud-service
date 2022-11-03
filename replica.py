@@ -13,6 +13,8 @@ import sys                        # for exiting and command-line args
 from fileshare_helpers import *   # for csci356 filesharing helper code
 from multithread_logging import * # for csci356 logging helper code
 import requests
+import shutil
+import os
 import gcp
 
 # This data type represents a collection of information about some other
@@ -72,6 +74,11 @@ def getCentralInfo():
         central_backend_port = global_central_backend_port
         global_condition.notify_all()
     return central_host, central_backend_port
+
+def initShareFolder():
+    if os.path.exists("./share/"):
+        shutil.rmtree("./share")
+    os.mkdir("./share")
     
 # Handle one browser connection. This will receive an HTTP request, handle it,
 # and repeat this as long as the browser says to keep-alive. If there are any
@@ -169,6 +176,7 @@ def accept_http_connections(listening_sock):
 #  - should then simply wait forever, until something goes wrong
 # If anything goes wrong, then do some cleanup and exit.
 def run_replica_server(name, region, frontend_port, backend_port, central_host, central_port):
+    initShareFolder()
     logwarn("Starting replica server.")
     log("Replica name: %s" % (name))
     log("Replica region: %s" % (region))
