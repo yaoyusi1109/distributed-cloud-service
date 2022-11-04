@@ -85,14 +85,12 @@ def send_filenames_and_sizes(conn):
     local_file_names = os.listdir("./share/")  # list of shared user files we have locally
     num_local_files = len(local_file_names)
 
-    content = ""
+    retval_list = []
     for filename in local_file_names:
         size = os.path.getsize("./share/" + filename)
-        content += filename
-        content += ","
-        content += str(size)
-        content += "&"
-
+        retval_list += (filename + "," + str(size))
+    
+    content = "&".join(retval_list)
     resp += "Content-Length: %d\r\n" % (len(content))
     resp += "Content-Type: text/plain\r\n"
     conn.sock.sendall(resp.encode() + b"\r\n" + content.encode())
