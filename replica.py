@@ -107,12 +107,11 @@ def handle_http_connection(conn):
             elif req.method == "POST" and req.path.startswith("/upload"):
                 params = req.params
                 log("Got filtered file list from central %s" % params["filelist"])
-                filtered_files = params["filelist"].split(",")
+                uploaded_files = req.form_content.get("files", None)
+                filtered_file_list = params["filelist"].split(",")
                 for upload in uploaded_files:
-                    if upload in filtered_files:
-                        filename = upload.filename
-                        contents = upload.data
-                        add_file(filename, contents)
+                    if upload.filename in filtered_file_list:
+                        add_file(upload.filename, upload.data)
                 central_host, central_backend_port = getCentralInfo()
                 redirect_to_other_server(conn, "", central_host, central_backend_port, "/shared-files.html")
 
