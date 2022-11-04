@@ -192,7 +192,7 @@ def run_replica_server(name, region, frontend_port, backend_port, central_host, 
     r.raise_for_status()
     log("Registration at Central Coordinator completed")
 
-    global my_name, my_region, my_frontend_port, my_backend_port
+    global my_name, my_region, my_frontend_port, my_backend_port, global_central_host, global_central_backend_port
     my_name = name
     my_region = region
     my_frontend_port = frontend_port
