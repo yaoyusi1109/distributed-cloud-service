@@ -84,7 +84,6 @@ def gather_shared_file_list():
             for filename_size_string in parsed_files:
                 fname, size_str = filename_size_string.split(',')
                 size = int(size_str)
-                log("checking file %s", % fname)
                 if fname in new_locations:
                     continue
                 all_files.append(fname)
