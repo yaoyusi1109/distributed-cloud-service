@@ -86,7 +86,7 @@ def gather_shared_file_list():
                     continue
                 parsed_f = file_string.split(',')
                 all_files.append(parsed_f[0])
-                all_sizes.append(parsed_f[1])
+                all_sizes.append(int(parsed_f[1]))
                 new_locations[file_string] = replica_ip_port_tuple
         else:
             logwarn("cannot connect to replica ip: %s", replica_ip)
