@@ -88,7 +88,7 @@ def send_filenames_and_sizes(conn):
     retval_list = []
     for filename in local_file_names:
         size = os.path.getsize("./share/" + filename)
-        retval_list += (filename + "," + str(size))
+        retval_list.append((filename + "," + str(size)))
     
     content = "&".join(retval_list)
     resp += "Content-Length: %d\r\n" % (len(content))
