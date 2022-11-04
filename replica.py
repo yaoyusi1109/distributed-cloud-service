@@ -126,12 +126,14 @@ def handle_http_connection(conn):
                     logerr("Missing html form or 'filename' form field?")
                 else:
                     status = remove_file(filename)
+                central_host, central_backend_port = getCentralInfo()
                 redirect_to_other_server(conn, "", central_host, central_backend_port, "/shared-files.html", True)
             
             # POST /delete/whatever.pdf (this version expects filename as part of URL)
             elif req.method == "POST" and req.path.startswith("/delete/"):
                 filename = req.path[8:]
                 status = remove_file(filename)
+                central_host, central_backend_port = getCentralInfo()
                 redirect_to_other_server(conn, "", central_host, central_backend_port, "/shared-files.html", True)
             
             # GET /view/somefile.pdf
