@@ -72,9 +72,9 @@ def gather_shared_file_list():
         replica_ip = replica_ip_port_tuple[0]
         replica_port = replica_ip_port_tuple[1]
         url = 'http://' + replica_ip + ":" + replica_port + "/filenames"
-        r = requests.get(url)
-        log("GATHERING FILE LIST from %s" % url)
-        if r.status_code == 200:
+        try:
+            r = requests.get(url)
+            log("GATHERING FILE LIST from %s" % url)
             new_replicas.add(replica_ip_port_tuple)
             allfiles_string = r.content.decode("utf-8")
             if allfiles_string == "":
@@ -89,9 +89,9 @@ def gather_shared_file_list():
                 all_files.append(fname)
                 all_sizes.append(size)
                 new_locations[fname] = (replica_ip, str(replica_port))
-        else:
-            logwarn("cannot connect to replica ip: %s", replica_ip)
-    
+        except:
+            log("replica %s is dead" % replica_ip)
+
     with stats_updates:
         replicaset = new_replicas
         locations = new_locations
