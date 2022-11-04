@@ -104,6 +104,7 @@ def getFileReplicaTuple(filename):
     with stats_updates:
         replicaTuple = locations[filename]
         stats_updates.notify_all()
+    log("replica tuple returning info %s" % str(replicaTuple))
     return replicaTuple
 
 # Send the dynamically-generated main page to the client.
