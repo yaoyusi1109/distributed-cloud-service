@@ -87,7 +87,7 @@ def gather_shared_file_list():
                 if fname in new_locations:
                     continue
                 all_files.append(fname)
-                all_sizes.append(size_str)
+                all_sizes.append(size)
                 new_locations[fname] = (replica_ip, str(replica_port))
         else:
             logwarn("cannot connect to replica ip: %s", replica_ip)
