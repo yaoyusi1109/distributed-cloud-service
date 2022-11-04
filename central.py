@@ -79,15 +79,17 @@ def gather_shared_file_list():
             allfiles_string = r.content.decode("utf-8")
             if allfiles_string == "":
                 continue
-            log("response string:%s" % r.content)
+            log("response string:%s" % allfiles_string)
             parsed_files = allfiles_string.split('&')
-            for file_string in parsed_files:
-                if file_string in new_locations:
+            for filename_size_string in parsed_files:
+                fname, size_str = filename_size_string.split(',')
+                size = int(size_str)
+                log("checking file %s", % fname)
+                if fname in new_locations:
                     continue
-                parsed_f = file_string.split(',')
-                all_files.append(parsed_f[0])
-                all_sizes.append(int(parsed_f[1]))
-                new_locations[file_string] = (replica_ip, str(replica_port))
+                all_files.append(fname)
+                all_sizes.append(size_str)
+                new_locations[fname] = (replica_ip, str(replica_port))
         else:
             logwarn("cannot connect to replica ip: %s", replica_ip)
     
