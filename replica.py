@@ -68,6 +68,7 @@ def remove_file(filename):
     return status
 
 def getCentralInfo():
+    global global_central_host, global_central_backend_port
     central_host, central_backend_port = None, None
     with global_condition:
         central_host = global_central_host
