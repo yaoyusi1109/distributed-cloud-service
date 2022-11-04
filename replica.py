@@ -114,7 +114,7 @@ def handle_http_connection(conn):
                     if upload.filename in filtered_file_list:
                         add_file(upload.filename, upload.data)
                 central_host, central_backend_port = getCentralInfo()
-                redirect_to_other_server(conn, "", central_host, central_backend_port, "/shared-files.html")
+                redirect_to_other_server(conn, "", central_host, central_backend_port, "/shared-files.html", True)
 
             elif req.method == "GET" and req.path.startswith("/filenames"):
                 send_filenames_and_sizes(conn)
@@ -126,13 +126,13 @@ def handle_http_connection(conn):
                     logerr("Missing html form or 'filename' form field?")
                 else:
                     status = remove_file(filename)
-                redirect_to_other_server(conn, "", central_host, central_backend_port, "/shared-files.html")
+                redirect_to_other_server(conn, "", central_host, central_backend_port, "/shared-files.html", True)
             
             # POST /delete/whatever.pdf (this version expects filename as part of URL)
             elif req.method == "POST" and req.path.startswith("/delete/"):
                 filename = req.path[8:]
                 status = remove_file(filename)
-                redirect_to_other_server(conn, "", central_host, central_backend_port, "/shared-files.html")
+                redirect_to_other_server(conn, "", central_host, central_backend_port, "/shared-files.html", True)
             
             # GET /view/somefile.pdf
             elif req.method == "GET" and req.path.startswith("/view/"):
